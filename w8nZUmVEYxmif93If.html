@@ -1,0 +1,426 @@
+<html><head><base href="https://mobileassistant.ai/"><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><title>Magical Girl Battle</title><style>
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: "Times New Roman", serif;
+    overflow: hidden;
+}
+#game-container {
+    width: 100%;
+    height: 100%;
+    background-image: url('/a/c9b82692-970c-412f-85a0-6b67e817a7d2');
+    background-size: cover;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+.character {
+    position: absolute;
+    width: 25vw;
+    max-width: 150px;
+    height: 40vh;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: bottom;
+    transition: transform 0.3s;
+}
+#player { left: 20%; bottom: 20vh; background-image: url('/a/51dc3a41-4ee6-4d0e-9ff1-49ec1aa926fb'); }
+#partner { left: 5%; bottom: 20vh; background-image: url('/a/981b4750-d5cf-44ed-9bff-92c62eb49b9f'); }
+#enemy { right: 10%; bottom: 20vh; background-image: url('/a/9cca768f-f5bc-4212-86df-9bec5ce3fca4'); }
+#dialogue-box {
+    width: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 10px;
+    font-size: 2.5vw;
+    text-align: center;
+    box-sizing: border-box;
+}
+#menu {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-evenly;
+    width: 100%;
+    background-color: rgba(255, 255, 255, 0.8);
+    padding: 10px 0;
+}
+.menu-option {
+    padding: 10px;
+    margin: 5px;
+    background-color: #ff69b4;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 2.5vw;
+    color: white;
+    text-shadow: 1px 1px 2px black;
+}
+.menu-option:active { background-color: #ff1493; }
+.health-bar {
+    height: 20px;
+    background-color: #ff69b4;
+    border: 2px solid #fff;
+    box-shadow: 0 0 0 2px #000;
+    margin: 5px;
+    position: relative;
+}
+.health-fill {
+    height: 100%;
+    background-color: #ff1493;
+    transition: width 0.3s ease-out;
+}
+.health-text {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    color: white;
+    text-shadow: 1px 1px 2px black;
+    font-size: 14px;
+    line-height: 20px;
+}
+#player-partner-health {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 30vw;
+}
+#enemy-health {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 30vw;
+}
+.particle {
+    position: absolute;
+    pointer-events: none;
+}
+#game-over {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: white;
+    font-size: 4vw;
+    text-align: center;
+    display: none;
+}
+#game-over button {
+    margin-top: 20px;
+    padding: 10px 20px;
+    font-size: 3vw;
+    background-color: #ff69b4;
+    border: none;
+    color: white;
+    cursor: pointer;
+    border-radius: 5px;
+}
+</style></head><body>
+<div id="game-container">
+    <div id="player-partner-health">
+        <div class="health-bar"><div class="health-fill" id="player-health-fill" style="width: 100%;"></div><div class="health-text">Player: 100/100</div></div>
+        <div class="health-bar"><div class="health-fill" id="partner-health-fill" style="width: 100%;"></div><div class="health-text">Partner: 89/89</div></div>
+    </div>
+    <div id="enemy-health">
+        <div class="health-bar"><div class="health-fill" id="enemy-health-fill" style="width: 100%;"></div><div class="health-text">Enemy: 109/109</div></div>
+    </div>
+    <div id="player" class="character"></div>
+    <div id="partner" class="character"></div>
+    <div id="enemy" class="character"></div>
+    <div id="dialogue-box">A new challenger appears!</div>
+    <div id="menu">
+        <div class="menu-option" onclick="showAttackOptions()">Attack</div>
+        <div class="menu-option" onclick="defend()">Defend</div>
+        <div class="menu-option" onclick="talk()">Talk</div>
+        <div class="menu-option" onclick="skip()">Skip</div>
+    </div>
+</div>
+<div id="game-over">
+    <div id="end-message"></div>
+    <button onclick="restartGame('normal')">Restart Normal</button>
+    <button onclick="restartGame('hard')">Restart Hard</button>
+</div>
+
+<script>
+let playerHP = 100;
+let partnerHP = 89;
+let enemyHP = 109;
+let maxPlayerHP = 100;
+let maxPartnerHP = 89;
+let maxEnemyHP = 109;
+let hasAttacked = false;
+let difficulty = 'normal';
+
+function showAttackOptions() {
+    const menu = document.getElementById('menu');
+    menu.innerHTML = `
+        <div class="menu-option" onclick="attack('laser')">Love Laser</div>
+        <div class="menu-option" onclick="attack('hug')">Atomic Hug</div>
+        <div class="menu-option" onclick="attack('heal')">Group Heal</div>
+        <div class="menu-option" onclick="renderMainMenu()">Back</div>
+    `;
+}
+
+function renderMainMenu() {
+    const menu = document.getElementById('menu');
+    menu.innerHTML = `
+        <div class="menu-option" onclick="showAttackOptions()">Attack</div>
+        <div class="menu-option" onclick="defend()">Defend</div>
+        <div class="menu-option" onclick="talk()">Talk</div>
+        <div class="menu-option" onclick="skip()">Skip</div>
+    `;
+}
+
+function updateHealthBars() {
+    document.getElementById('player-health-fill').style.width = `${(playerHP / maxPlayerHP) * 100}%`;
+    document.getElementById('partner-health-fill').style.width = `${(partnerHP / maxPartnerHP) * 100}%`;
+    document.getElementById('enemy-health-fill').style.width = `${(enemyHP / maxEnemyHP) * 100}%`;
+    document.querySelector('#player-partner-health .health-bar:first-child .health-text').textContent = `Player: ${playerHP}/${maxPlayerHP}`;
+    document.querySelector('#player-partner-health .health-bar:last-child .health-text').textContent = `Partner: ${partnerHP}/${maxPartnerHP}`;
+    document.querySelector('#enemy-health .health-text').textContent = `Enemy: ${enemyHP}/${maxEnemyHP}`;
+}
+
+function createParticle(type, x, y) {
+    const particle = document.createElement('div');
+    particle.className = 'particle';
+    particle.style.left = `${x}px`;
+    particle.style.top = `${y}px`;
+    
+    switch(type) {
+        case 'star':
+            particle.style.backgroundImage = "url('/a/60730f5b-d307-472b-a756-1e73c1d319f1')";
+            break;
+        case 'heart':
+            particle.style.backgroundImage = "url('/a/3e4dda4f-167c-42b7-b8fc-17ade31066f6')";
+            break;
+        case 'pluto':
+            particle.style.backgroundImage = "url('/a/0f7af55f-0812-4f2a-8acc-4e837781e5a3')";
+            break;
+        default:
+            particle.textContent = type;
+    }
+    
+    particle.style.backgroundSize = 'contain';
+    particle.style.width = '30px';
+    particle.style.height = '30px';
+    document.body.appendChild(particle);
+    
+    setTimeout(() => {
+        particle.style.transition = 'all 1s ease-out';
+        particle.style.transform = `translate(${Math.random()*100 - 50}px, ${Math.random()*100 - 50}px) scale(0)`;
+        particle.style.opacity = '0';
+    }, 50);
+    
+    setTimeout(() => particle.remove(), 1050);
+}
+
+function attack(type) {
+    hasAttacked = true;
+    let message = '';
+    const playerRect = document.getElementById('player').getBoundingClientRect();
+    
+    switch(type) {
+        case 'laser':
+            enemyHP = Math.max(0, enemyHP - 5);
+            message = 'You used Love Laser! Enemy takes 5 damage!';
+            createParticle('💖', playerRect.right, playerRect.top);
+            break;
+        case 'hug':
+            enemyHP = Math.max(0, enemyHP - 9);
+            playerHP = Math.max(0, playerHP - 3);
+            message = 'You used Atomic Hug! Enemy takes 9 damage, but you take 3 damage!';
+            createParticle('🤗', playerRect.right, playerRect.top);
+            break;
+        case 'heal':
+            playerHP = Math.min(maxPlayerHP, playerHP + 5);
+            partnerHP = Math.min(maxPartnerHP, partnerHP + 5);
+            message = 'You used Group Heal! You and your partner recover 5 HP!';
+            createParticle('✨', playerRect.left, playerRect.top);
+            break;
+    }
+    document.getElementById('dialogue-box').innerText = message;
+    updateHealthBars();
+    animateCharacter('player', 'attack');
+    setTimeout(partnerTurn, 2000);
+}
+
+function defend() {
+    document.getElementById('dialogue-box').innerText = 'You prepare to defend!';
+    animateCharacter('player', 'defend');
+    setTimeout(partnerTurn, 2000);
+}
+
+function talk() {
+    if (!hasAttacked && Math.random() < 0.04) {
+        endGame('pacifist');
+    } else {
+        playerHP = Math.max(0, playerHP - 9);
+        document.getElementById('dialogue-box').innerText = 'Your attempt to talk failed! You take 9 damage!';
+        animateCharacter('player', 'hurt');
+        updateHealthBars();
+        setTimeout(partnerTurn, 2000);
+    }
+}
+
+function skip() {
+    document.getElementById('dialogue-box').innerText = 'You decided to skip your turn!';
+    setTimeout(partnerTurn, 2000);
+}
+
+function partnerTurn() {
+    if (partnerHP <= 0) {
+        enemyTurn();
+        return;
+    }
+    let message = '';
+    const partnerRect = document.getElementById('partner').getBoundingClientRect();
+    
+    if (Math.random() < 0.75) {
+        const attackChoice = Math.random();
+        if (attackChoice < 0.4) {
+            enemyHP = Math.max(0, enemyHP - 7);
+            message = 'Your partner used Slash! Enemy takes 7 damage!';
+            createParticle('⚔️', partnerRect.right, partnerRect.top);
+        } else if (attackChoice < 0.6) {
+            enemyHP = Math.max(0, enemyHP - 10);
+            message = 'Your partner used Shooting Stars of Romance! Enemy takes 10 damage!';
+            createParticle('star', partnerRect.right, partnerRect.top);
+        } else {
+            playerHP = Math.min(maxPlayerHP, playerHP + 3);
+            message = 'Your partner used Boost Shot! You recover 3 HP!';
+            createParticle('🚀', partnerRect.right, partnerRect.top);
+        }
+        animateCharacter('partner', 'attack');
+    } else {
+        message = 'Your partner is defending!';
+        animateCharacter('partner', 'defend');
+    }
+    document.getElementById('dialogue-box').innerText = message;
+    updateHealthBars();
+    setTimeout(enemyTurn, 2000);
+}
+
+function enemyTurn() {
+    let message = '';
+    const enemyRect = document.getElementById('enemy').getBoundingClientRect();
+    
+    if (Math.random() < 0.8) {
+        const attackChoice = Math.random();
+        const target = Math.random() < 0.5 ? 'player' : 'partner';
+        if (attackChoice < 0.01) {
+            playerHP = Math.max(0, playerHP - (difficulty === 'hard' ? 18 : 15));
+            partnerHP = Math.max(0, partnerHP - (difficulty === 'hard' ? 18 : 15));
+            message = `The enemy used Pluto Explosion! You and your partner take ${difficulty === 'hard' ? 18 : 15} damage!`;
+            createParticle('pluto', enemyRect.left, enemyRect.top);
+        } else if (attackChoice < 0.26) {
+            const damage = difficulty === 'hard' ? 6 : 5;
+            if (target === 'player') {
+                playerHP = Math.max(0, playerHP - damage);
+                message = `The enemy Slapped you! You take ${damage} damage!`;
+                animateCharacter('player', 'hurt');
+            } else {
+                partnerHP = Math.max(0, partnerHP - damage);
+                message = `The enemy Slapped your partner! Your partner takes ${damage} damage!`;
+                animateCharacter('partner', 'hurt');
+            }
+            createParticle('👋', enemyRect.left, enemyRect.top);
+        } else if (attackChoice < 0.29) {
+            const damage = difficulty === 'hard' ? 8 : 7;
+            if (target === 'player') {
+                playerHP = Math.max(0, playerHP - damage);
+                message = `The enemy Punched you! You take ${damage} damage!`;
+                animateCharacter('player', 'hurt');
+            } else {
+                partnerHP = Math.max(0, partnerHP - damage);
+                message = `The enemy Punched your partner! Your partner takes ${damage} damage!`;
+                animateCharacter('partner', 'hurt');
+            }
+            createParticle('👊', enemyRect.left, enemyRect.top);
+        } else if (attackChoice < 0.38) {
+            enemyHP = Math.min(maxEnemyHP, enemyHP + 5);
+            message = 'The enemy used Time Heal! Enemy recovers 5 HP!';
+            createParticle('⏳', enemyRect.left, enemyRect.top);
+        } else {
+            message = 'The enemy\'s attack missed!';
+        }
+        animateCharacter('enemy', 'attack');
+    } else {
+        message = 'The enemy is defending!';
+        animateCharacter('enemy', 'defend');
+    }
+    document.getElementById('dialogue-box').innerText = message;
+    updateHealthBars();
+    setTimeout(checkGameState, 2000);
+}
+
+function checkGameState() {
+    if (playerHP <= 0) {
+        endGame('lose');
+    } else if (enemyHP <= 0) {
+        endGame('win');
+    } else {
+        document.getElementById('dialogue-box').innerText = 'Your turn! Choose your action!';
+        renderMainMenu();
+    }
+}
+
+function animateCharacter(character, action) {
+    const elem = document.getElementById(character);
+    elem.style.transition = 'transform 0.3s';
+    
+    switch(action) {
+        case 'attack':
+            elem.style.transform = 'translateX(20px) rotate(5deg)';
+            break;
+        case 'defend':
+            elem.style.transform = 'scale(0.9)';
+            break;
+        case 'hurt':
+            elem.style.transform = 'translateX(-10px) rotate(-5deg)';
+            break;
+    }
+    
+    setTimeout(() => {
+        elem.style.transform = 'none';
+    }, 300);
+}
+
+function endGame(condition) {
+    const gameOver = document.getElementById('game-over');
+    const endMessage = document.getElementById('end-message');
+    
+    if (condition === 'win') {
+        endMessage.textContent = 'You got the attacker ending, but your enemy got revenge and destroyed the world.';
+    } else if (condition === 'lose') {
+        endMessage.textContent = 'The world ended.';
+    } else if (condition === 'pacifist') {
+        endMessage.textContent = 'You won and saved the world with love 🥰.';
+    }
+    
+    gameOver.style.display = 'flex';
+}
+
+function restartGame(newDifficulty) {
+    difficulty = newDifficulty;
+    playerHP = difficulty === 'hard' ? 80 : 100;
+    partnerHP = difficulty === 'hard' ? 70 : 89;
+    enemyHP = 109;
+    maxPlayerHP = playerHP;
+    maxPartnerHP = partnerHP;
+    maxEnemyHP = enemyHP;
+    hasAttacked = false;
+    
+    updateHealthBars();
+    document.getElementById('dialogue-box').innerText = 'A new challenger appears!';
+    renderMainMenu();
+    document.getElementById('game-over').style.display = 'none';
+}
+
+updateHealthBars();
+</script>
+</body></html>
